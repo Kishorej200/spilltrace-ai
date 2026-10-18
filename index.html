@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPILLTRACE AI — Maritime Pollution Intelligence & Response System</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#050b13;
+  --bg-deep:#03070c;
+  --panel:#0a141f;
+  --panel-2:#0d1826;
+  --border:#152436;
+  --border-soft:#0f1d2c;
+  --text:#dbe6f0;
+  --text-dim:#7690a8;
+  --text-faint:#4a5f74;
+  --cyan:#39c3e6;
+  --cyan-dim:#1c5a6e;
+  --blue:#3d7ef0;
+  --green:#3ecf8e;
+  --amber:#e0a83c;
+  --red:#e35555;
+  --purple:#a97af0;
+  --mono:'IBM Plex Mono', monospace;
+  --sans:'Inter', sans-serif;
+  --disp:'Space Grotesk', sans-serif;
+  --radius:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:13px;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#16293b;border-radius:4px;}
+
+/* ===== App shell ===== */
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* ===== HEADER ===== */
+header{
+  height:52px;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 18px;
+  background:linear-gradient(180deg,#081019,#060c14);
+  border-bottom:1px solid var(--border);
+  z-index:50;
+}
+.hdr-left{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:30px;height:30px;border-radius:6px;
+  background:radial-gradient(circle at 30% 30%, var(--cyan), #0a3a4a);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(57,195,230,0.35);
+  flex:0 0 auto;
+}
+.brand-mark svg{width:16px;height:16px;}
+.brand-text{display:flex;flex-direction:column;line-height:1.15;}
+.brand-text .name{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:0.5px;color:#f2f7fb;}
+.brand-text .sub{font-size:9px;letter-spacing:1.2px;color:var(--text-faint);font-weight:500;}
+.hdr-center{
+  font-family:var(--mono);
+  font-size:10.5px;
+  letter-spacing:2px;
+  color:var(--text-dim);
+  display:flex; align-items:center; gap:8px;
+}
+.hdr-center .dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.6s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+.hdr-right{display:flex;align-items:center;gap:16px;}
+.status-pill{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10.5px;color:var(--green);
+  padding:4px 9px;border:1px solid #123326;border-radius:20px;background:#08160f;
+}
+.status-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+.hdr-meta{display:flex;flex-direction:column;font-family:var(--mono);font-size:10px;color:var(--text-faint);line-height:1.3;text-align:right;}
+.hdr-meta b{color:var(--text-dim);font-weight:500;}
+.icon-btn{
+  width:30px;height:30px;border-radius:6px;border:1px solid var(--border);
+  background:var(--panel-2);display:flex;align-items:center;justify-content:center;
+  color:var(--text-dim);cursor:pointer;position:relative;
+}
+.icon-btn:hover{border-color:var(--cyan-dim);color:var(--cyan);}
+.notif-dot{position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--bg-deep);}
+.avatar{
+  width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#1e3a52,#0d1e2c);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--cyan);
+  border:1px solid var(--border);
+}
+
+/* ===== BODY LAYOUT ===== */
+#body-row{flex:1 1 auto;display:flex;min-height:0;}
+
+/* ===== SIDEBAR ===== */
+#sidebar{
+  width:190px;flex:0 0 auto;background:var(--bg-deep);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:12px 8px;transition:width .18s ease;
+}
+#sidebar.collapsed{width:56px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;
+  color:var(--text-dim);font-size:12.5px;font-weight:500;cursor:pointer;margin-bottom:2px;
+  white-space:nowrap;overflow:hidden;
+}
+.nav-item svg{flex:0 0 auto;width:16px;height:16px;opacity:0.85;}
+.nav-item:hover{background:var(--panel-2);color:var(--text);}
+.nav-item.active{background:#0d2130;color:var(--cyan);box-shadow:inset 2px 0 0 var(--cyan);}
+#sidebar.collapsed .nav-label{display:none;}
+.sidebar-toggle{
+  margin-top:auto;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:8px;color:var(--text-faint);cursor:pointer;font-size:11px;border-top:1px solid var(--border-soft);
+}
+.sidebar-toggle:hover{color:var(--cyan);}
+
+/* ===== MAIN ===== */
+#main{flex:1 1 auto;overflow-y:auto;padding:14px 16px 90px;min-width:0;}
+.page{display:none;}
+.page.active{display:block;}
+
+.demo-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:linear-gradient(90deg,#241705,#1a1206);
+  border:1px solid #3a2a0c;color:var(--amber);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:1px;
+  padding:6px 12px;border-radius:6px;margin-bottom:12px;
+}
+.demo-banner .toggle-wrap{display:flex;align-items:center;gap:8px;font-family:var(--sans);letter-spacing:0;color:var(--text-dim);}
+.switch{width:32px;height:18px;border-radius:10px;background:#2a3d13;position:relative;cursor:pointer;border:1px solid #3f5a1c;}
+.switch.on{background:#2a4d1e;border-color:#3ecf8e;}
+.switch .knob{position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:#9fe3b8;transition:left .15s;}
+.switch.on .knob{left:15px;background:#3ecf8e;}
+
+/* KPI strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
+.kpi-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px 14px;
+  position:relative;overflow:hidden;
+}
+.kpi-card::before{content:"";position:absolute;top:0;left:0;width:2px;height:100%;background:var(--cyan);opacity:.5;}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.kpi-label{font-size:9.5px;letter-spacing:1px;color:var(--text-faint);font-weight:600;}
+.kpi-icon{width:14px;height:14px;color:var(--text-faint);}
+.kpi-value{font-family:var(--disp);font-size:23px;font-weight:700;color:#f2f7fb;line-height:1;}
+.kpi-trend{font-family:var(--mono);font-size:10px;margin-top:6px;display:flex;align-items:center;gap:4px;}
+.trend-up{color:var(--red);} .trend-down{color:var(--green);} .trend-flat{color:var(--text-dim);}
+
+/* Grid layout */
+.grid-2{display:grid;grid-template-columns:1fr 340px;gap:12px;margin-bottom:12px;align-items:start;}
+.grid-full{margin-bottom:12px;}
+.grid-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  overflow:hidden;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border-soft);
+}
+.card-title{font-family:var(--disp);font-size:12.5px;font-weight:600;letter-spacing:.3px;color:#eaf2f9;display:flex;align-items:center;gap:7px;}
+.card-title .chip{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:#0d2130;color:var(--cyan);border:1px solid #123045;}
+.card-sub{font-size:10.5px;color:var(--text-faint);}
+.card-body{padding:14px;}
+
+/* MAP */
+#map-card{position:relative;}
+#map{height:520px;width:100%;background:#04090f;}
+.map-overlay-top{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none;z-index:400;}
+.map-controls{
+  display:flex;flex-direction:column;gap:4px;pointer-events:auto;
+}
+.map-btn{
+  width:28px;height:28px;border-radius:5px;background:rgba(8,16,26,0.92);border:1px solid var(--border);
+  color:var(--text-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(2px);
+}
+.map-btn:hover{color:var(--cyan);border-color:var(--cyan-dim);}
+.map-btn.active-toggle{color:var(--cyan);border-color:var(--cyan-dim);background:#0d2130;}
+.layer-panel{
+  pointer-events:auto;background:rgba(8,16,26,0.94);border:1px solid var(--border);border-radius:6px;
+  padding:8px;width:158px;backdrop-filter:blur(2px);
+}
+.layer-panel .lp-title{font-size:9px;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;font-weight:600;}
+.layer-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:11px;color:var(--text-dim);}
+.layer-row input{accent-color:var(--cyan);}
+.map-legend{
+  position:absolute;bottom:38px;left:10px;z-index:400;background:rgba(8,16,26,0.94);border:1px solid var(--border);
+  border-radius:6px;padding:9px 12px;font-size:10.5px;color:var(--text-dim);display:flex;flex-direction:column;gap:5px;backdrop-filter:blur(2px);
+}
+.legend-item{display:flex;align-items:center;gap:7px;}
+.legend-swatch{width:10px;height:10px;border-radius:2px;flex:0 0 auto;}
+.legend-line{width:16px;height:2px;flex:0 0 auto;}
+.map-scenario-tag{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:400;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;color:var(--amber);
+  background:rgba(20,14,4,0.85);border:1px solid #3a2a0c;padding:4px 10px;border-radius:4px;pointer-events:none;
+}
+
+/* Incident/origin panel stack */
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--border-soft);}
+.stat-row:last-child{border-bottom:none;}
+.stat-label{color:var(--text-dim);font-size:11px;}
+.stat-value{font-family:var(--mono);font-size:12px;color:#eaf2f9;font-weight:500;}
+.status-badge{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:1px;padding:3px 8px;border-radius:3px;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.badge-active{background:#241305;color:var(--amber);border:1px solid #3a2a0c;}
+.badge-ok{background:#08160f;color:var(--green);border:1px solid #123326;}
+.badge-crit{background:#240909;color:var(--red);border:1px solid #3a0f0f;}
+.section-divider{margin:12px 0 8px;font-size:9.5px;letter-spacing:1.2px;color:var(--text-faint);font-weight:600;display:flex;align-items:center;gap:8px;}
+.section-divider::after{content:"";flex:1;height:1px;background:var(--border-soft);}
+
+.env-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+.env-cell{background:var(--panel-2);border:1px solid var(--border-soft);border-radius:5px;padding:8px 10px;}
+.env-cell .el{font-size:9.5px;color:var(--text-faint);margin-bottom:3px;}
+.env-cell .ev{font-family:var(--mono);font-size:13px;color:var(--text);}
+
+/* Spill analysis mini pipeline */
+.mini-pipeline{display:flex;align-items:center;gap:6px;margin:10px 0;overflow-x:auto;padding-bottom:2px;}
+.mp-step{flex:1 1 0;min-width:86px;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:5px;padding:8px;text-align:center;}
+.mp-step .mp-ic{font-size:16px;margin-bottom:4px;}
+.mp-step .mp-t{font-size:9px;color:var(--text-dim);letter-spacing:.3px;}
+.mp-arrow{color:var(--text-faint);font-size:13px;flex:0 0 auto;}
+
+.ring-wrap{display:flex;align-items:center;gap:14px;}
+.ring{
+  width:74px;height:74px;border-radius:50%;
+  background:conic-gradient(var(--cyan) 0% var(--pct,94%), #12202e var(--pct,94%) 100%);
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.ring-inner{width:56px;height:56px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.ring-inner b{font-family:var(--mono);font-size:14px;color:#eaf2f9;}
+.ring-inner span{font-size:7.5px;color:var(--text-faint);}
+
+/* Origin timeline mini */
+.release-timeline{margin-top:10px;position:relative;padding-top:18px;}
+.rt-bar{height:4px;background:#12202e;border-radius:2px;position:relative;}
+.rt-fill{position:absolute;top:0;left:35%;width:30%;height:4px;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px;}
+.rt-marker{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--purple);white-space:nowrap;}
+.rt-marker::after{content:"▼";display:block;text-align:center;font-size:8px;}
+.rt-labels{display:flex;justify-content:space-between;margin-top:5px;font-family:var(--mono);font-size:9.5px;color:var(--text-faint);}
+
+/* Vessel funnel */
+.funnel{display:flex;align-items:stretch;gap:0;margin-top:6px;}
+.funnel-step{flex:1;text-align:center;padding:14px 6px;position:relative;}
+.funnel-step:not(:last-child)::after{
+  content:"→";position:absolute;right:-2px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:14px;z-index:2;
+}
+.funnel-num{font-family:var(--disp);font-size:24px;font-weight:700;color:#eaf2f9;}
+.funnel-lbl{font-size:9px;color:var(--text-faint);letter-spacing:.5px;margin-top:3px;}
+.funnel-step.f1 .funnel-num{color:var(--text-dim);}
+.funnel-step.f2 .funnel-num{color:var(--cyan);}
+.funnel-step.f3 .funnel-num{color:var(--amber);}
+.funnel-step.f4 .funnel-num{color:var(--red);}
+
+/* Ranking table */
+table.rank-table{width:100%;border-collapse:collapse;font-size:12px;}
+.rank-table thead th{
+  text-align:left;font-size:9.5px;letter-spacing:.6px;color:var(--text-faint);font-weight:600;
+  padding:8px 10px;border-bottom:1px solid var(--border-soft);white-space:nowrap;
+}
+.rank-table tbody tr{cursor:pointer;border-bottom:1px solid var(--border-soft);}
+.rank-table tbody tr:hover{background:#0d1c2a;}
+.rank-table td{padding:9px 10px;color:var(--text);vertical-align:middle;}
+.rank-num{font-family:var(--mono);color:var(--text-faint);}
+.vessel-name{font-weight:600;color:#eaf2f9;}
+.vessel-mmsi{font-family:var(--mono);font-size:9.5px;color:var(--text-faint);display:block;}
+.score-bar-wrap{display:flex;align-items:center;gap:8px;}
+.score-bar-bg{width:70px;height:5px;background:#12202e;border-radius:3px;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:3px;}
+.score-num{font-family:var(--mono);font-size:12px;font-weight:600;}
+.behaviour-tag{font-size:10px;padding:2px 7px;border-radius:3px;font-family:var(--mono);}
+.b-high{background:#240909;color:var(--red);}
+.b-medium{background:#241305;color:var(--amber);}
+.b-low{background:#08160f;color:var(--green);}
+
+/* Forecast */
+.forecast-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.fstat{background:var(--panel-2);border:1px solid var(--border-soft);border-radius:5px;padding:9px 11px;}
+.fstat .fl{font-size:9px;color:var(--text-faint);margin-bottom:3px;letter-spacing:.4px;}
+.fstat .fv{font-family:var(--mono);font-size:15px;color:#eaf2f9;}
+.fstat .fv.risk-high{color:var(--red);}
+
+/* Alerts */
+.alert-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-soft);}
+.alert-item:last-child{border-bottom:none;}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex:0 0 auto;}
+.alert-title{font-size:11.5px;font-weight:600;color:#eaf2f9;}
+.alert-desc{font-size:11px;color:var(--text-dim);margin-top:1px;}
+.alert-time{font-family:var(--mono);font-size:9.5px;color:var(--text-faint);margin-left:auto;white-space:nowrap;}
+
+/* Evidence */
+.evidence-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.ev-card{background:var(--panel-2);border:1px solid var(--border-soft);border-radius:5px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.ev-card .evt{font-size:11.5px;font-weight:600;color:#eaf2f9;}
+.ev-card .evs{font-size:10px;color:var(--text-faint);}
+.ev-btn{
+  margin-top:auto;align-self:flex-start;font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;
+  color:var(--cyan);background:#0d2130;border:1px solid #123045;padding:4px 10px;border-radius:3px;cursor:pointer;
+}
+.ev-btn:hover{background:#123045;}
+
+/* Buttons */
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--cyan),#1a7fa0);
+  color:#03151c;font-weight:700;font-size:12px;padding:9px 16px;border-radius:6px;border:none;cursor:pointer;
+  box-shadow:0 0 18px rgba(57,195,230,0.25);
+}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-ghost{
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);font-size:11px;
+  padding:7px 12px;border-radius:5px;cursor:pointer;
+}
+.btn-ghost:hover{color:var(--text);border-color:var(--cyan-dim);}
+
+/* Timeline playback (bottom bar) */
+#timeline-bar{
+  position:fixed;left:190px;right:0;bottom:0;height:64px;background:linear-gradient(0deg,#060c14,#081019);
+  border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:60;
+  transition:left .18s ease;
+}
+#sidebar.collapsed ~ #body-row #timeline-bar, body.collapsed #timeline-bar{left:56px;}
+.tl-play{width:32px;height:32px;border-radius:50%;background:#0d2130;border:1px solid var(--cyan-dim);color:var(--cyan);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;}
+.tl-track-wrap{flex:1;position:relative;}
+.tl-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--text-faint);margin-bottom:6px;}
+.tl-track{height:4px;background:#12202e;border-radius:2px;position:relative;cursor:pointer;}
+.tl-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:2px;width:38%;}
+.tl-handle{
+  position:absolute;top:50%;left:38%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;
+  background:#eaf2f9;border:2px solid var(--cyan);cursor:grab;
+}
+.tl-markers{display:flex;justify-content:space-between;margin-top:4px;font-size:8.5px;color:var(--text-faint);}
+.tl-current{font-family:var(--mono);font-size:11px;color:var(--cyan);min-width:64px;text-align:right;flex:0 0 auto;}
+
+/* Drawer */
+#drawer-backdrop{
+  position:fixed;inset:0;background:rgba(2,6,10,0.6);z-index:200;display:none;backdrop-filter:blur(1px);
+}
+#drawer{
+  position:fixed;top:0;right:-460px;width:440px;height:100%;background:#081119;border-left:1px solid var(--border);
+  z-index:201;transition:right .22s ease;display:flex;flex-direction:column;
+}
+#drawer.open{right:0;}
+#drawer-backdrop.show{display:block;}
+.drawer-head{padding:16px 18px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:flex-start;}
+.drawer-head h3{font-family:var(--disp);font-size:15px;color:#f2f7fb;}
+.drawer-head p{font-size:10.5px;color:var(--text-faint);margin-top:3px;}
+.drawer-close{cursor:pointer;color:var(--text-faint);font-size:18px;line-height:1;}
+.drawer-body{padding:16px 18px;overflow-y:auto;flex:1;}
+.evidence-row{margin-bottom:16px;}
+.evidence-row .eh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.evidence-row .en{font-size:12px;font-weight:600;color:#eaf2f9;}
+.evidence-row .es{font-family:var(--mono);font-size:13px;font-weight:700;}
+.evidence-row .ed{font-size:11.5px;color:var(--text-dim);line-height:1.5;}
+.ebar-bg{height:5px;background:#12202e;border-radius:3px;margin:6px 0 8px;overflow:hidden;}
+.ebar-fill{height:100%;border-radius:3px;background:var(--cyan);}
+.overall-box{
+  background:#0d2130;border:1px solid #123045;border-radius:6px;padding:14px;text-align:center;margin:14px 0;
+}
+.overall-box .os{font-family:var(--disp);font-size:30px;font-weight:700;color:var(--red);}
+.overall-box .ol{font-size:10.5px;color:var(--text-dim);letter-spacing:.6px;margin-top:2px;}
+.disclaimer{
+  font-size:10.5px;color:var(--text-faint);line-height:1.5;border-top:1px dashed var(--border-soft);padding-top:12px;margin-top:6px;font-style:italic;
+}
+
+/* Run analysis progress modal */
+#progress-modal{
+  position:fixed;inset:0;background:rgba(2,6,10,0.72);z-index:300;display:none;align-items:center;justify-content:center;
+}
+#progress-modal.show{display:flex;}
+.progress-card{
+  width:420px;background:#081119;border:1px solid var(--border);border-radius:8px;padding:22px 24px;
+  box-shadow:0 0 40px rgba(57,195,230,0.12);
+}
+.progress-card h4{font-family:var(--disp);font-size:14px;color:#f2f7fb;margin-bottom:2px;}
+.progress-card .pc-sub{font-size:10.5px;color:var(--text-faint);margin-bottom:16px;}
+.progress-track{height:5px;background:#12202e;border-radius:3px;overflow:hidden;margin-bottom:14px;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--cyan));transition:width .35s ease;}
+.stage-list{display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;}
+.stage-row{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--text-faint);opacity:.4;transition:opacity .2s;}
+.stage-row.done{opacity:1;color:var(--text-dim);}
+.stage-row.current{opacity:1;color:var(--cyan);}
+.stage-dot{width:6px;height:6px;border-radius:50%;background:var(--text-faint);flex:0 0 auto;}
+.stage-row.done .stage-dot{background:var(--green);}
+.stage-row.current .stage-dot{background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:pulse-dot 1s infinite;}
+@keyframes pulse-dot{0%,100%{transform:scale(1);}50%{transform:scale(1.5);}}
+.complete-banner{display:none;text-align:center;padding:10px;margin-top:14px;background:#08160f;border:1px solid #123326;border-radius:5px;color:var(--green);font-family:var(--mono);font-size:11.5px;letter-spacing:1px;}
+.complete-banner.show{display:block;}
+
+/* Toast */
+#toast-wrap{position:fixed;top:64px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px;}
+.toast{
+  background:#081119;border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:5px;
+  padding:10px 14px;width:260px;font-size:11.5px;color:var(--text);box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  animation:toast-in .25s ease;
+}
+@keyframes toast-in{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+.toast b{display:block;color:#f2f7fb;font-size:11.5px;margin-bottom:2px;}
+
+/* Architecture page */
+.pipeline-flow{display:flex;flex-direction:column;align-items:center;gap:0;padding:30px 10px;}
+.pf-node{
+  background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:12px 22px;text-align:center;
+  min-width:260px;position:relative;
+}
+.pf-node .pfn-t{font-family:var(--disp);font-weight:600;font-size:12.5px;color:#eaf2f9;}
+.pf-node .pfn-s{font-size:9.5px;color:var(--text-faint);margin-top:2px;}
+.pf-connector{width:2px;height:26px;background:linear-gradient(180deg,var(--cyan),var(--purple));position:relative;overflow:hidden;}
+.pf-connector::after{
+  content:"";position:absolute;left:-2px;top:-20px;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 8px var(--cyan);
+  animation:flow-down 1.8s linear infinite;
+}
+@keyframes flow-down{0%{top:-6px;}100%{top:26px;}}
+
+/* Data sources page */
+.ds-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.ds-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:16px;}
+.ds-card .dsi{width:34px;height:34px;border-radius:6px;background:#0d2130;display:flex;align-items:center;justify-content:center;margin-bottom:10px;color:var(--cyan);}
+.ds-card .dst{font-weight:600;font-size:13px;color:#eaf2f9;margin-bottom:3px;}
+.ds-card .dsd{font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:10px;}
+.ds-status{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9.5px;padding:3px 8px;border-radius:3px;}
+
+/* Leaflet dark tweaks */
+.leaflet-container{background:#04090f;font-family:var(--sans);}
+.leaflet-popup-content-wrapper{background:#0a141f;color:var(--text);border:1px solid var(--border);border-radius:5px;}
+.leaflet-popup-tip{background:#0a141f;}
+.leaflet-popup-content{font-size:11.5px;margin:9px 12px;}
+.leaflet-popup-content b{color:#eaf2f9;font-family:var(--mono);}
+.origin-pulse-icon{position:relative;}
+.origin-pulse-icon .core{width:12px;height:12px;background:var(--purple);border-radius:50%;box-shadow:0 0 8px var(--purple);position:absolute;top:4px;left:4px;}
+.origin-pulse-icon .ring{width:20px;height:20px;border:2px solid var(--purple);border-radius:50%;position:absolute;top:0;left:0;animation:ring-pulse 1.8s infinite ease-out;}
+@keyframes ring-pulse{0%{transform:scale(0.4);opacity:1;}100%{transform:scale(1.9);opacity:0;}}
+.vessel-icon{width:12px;height:12px;border-radius:50%;background:var(--blue);border:2px solid #dbe6f0;box-shadow:0 0 5px var(--blue);}
+.vessel-icon.suspect{background:var(--red);border-color:#ffe0e0;box-shadow:0 0 10px var(--red);width:14px;height:14px;}
+.spill-heat{animation:spill-heat-pulse 3.2s ease-in-out infinite;}
+.spill-glow-ring{animation:spill-glow-pulse 3.2s ease-in-out infinite;}
+@keyframes spill-heat-pulse{0%,100%{fill-opacity:0.32;}50%{fill-opacity:0.44;}}
+@keyframes spill-glow-pulse{0%,100%{stroke-opacity:0.3;}50%{stroke-opacity:0.85;}}
+.leaflet-overlay-pane path.slick-sheen{filter:blur(2.5px);}
+.leaflet-overlay-pane path.slick-iridescent{filter:blur(1px);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="hdr-left">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#02151c" stroke-width="2.4"><path d="M3 17c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0 3-1.2 4.5 0M4 12l7-8 9 5-4 3-6-2-4 2z"/></svg>
+      </div>
+      <div class="brand-text">
+        <span class="name">SPILLTRACE AI</span>
+        <span class="sub">MARITIME POLLUTION INTELLIGENCE &amp; RESPONSE SYSTEM</span>
+      </div>
+    </div>
+    <div class="hdr-center"><span class="dot"></span> LIVE INCIDENT MONITORING</div>
+    <div class="hdr-right">
+      <div class="status-pill"><span class="dot"></span> OPERATIONAL</div>
+      <div class="hdr-meta"><b id="hdr-time">--:--:-- UTC</b><span id="hdr-sync">Last sync: --</span></div>
+      <div class="icon-btn" title="Notifications">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>
+        <span class="notif-dot"></span>
+      </div>
+      <div class="avatar">CG</div>
+    </div>
+  </header>
+
+  <div id="body-row">
+    <nav id="sidebar">
+      <div class="nav-item active" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="nav-label">Overview</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span class="nav-label">Live Incidents</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12c3-6 6-9 9-9s6 3 9 9-6 9-9 9-6-3-9-9z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        <span class="nav-label">Spill Detection</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6c3 0 3 3 6 3s3-3 6-3 3 3 6 3M4 12c3 0 3 3 6 3s3-3 6-3 3 3 6 3M4 18c3 0 3 3 6 3s3-3 6-3 3 3 6 3"/></svg>
+        <span class="nav-label">Drift Analysis</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-9"/><path d="M14 6h7v7"/></svg>
+        <span class="nav-label">Vessel Intelligence</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 21h20L12 2z"/><path d="M12 9v5M12 17h.01"/></svg>
+        <span class="nav-label">Risk Zones</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/></svg>
+        <span class="nav-label">Forecast</span>
+      </div>
+      <div class="nav-item" data-page="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-4"/><path d="M13 3h8v8"/><path d="M21 3l-9 9"/></svg>
+        <span class="nav-label">Evidence</span>
+      </div>
+      <div class="nav-item" data-page="architecture">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="9" y="14" width="6" height="6" rx="1"/><path d="M7 10v2a2 2 0 002 2M17 10v2a2 2 0 01-2 2"/></svg>
+        <span class="nav-label">Reports</span>
+      </div>
+      <div class="nav-item" data-page="datasources">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        <span class="nav-label">Settings</span>
+      </div>
+      <div class="sidebar-toggle" id="sidebar-toggle-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="nav-label">Collapse</span>
+      </div>
+    </nav>
+
+    <main id="main">
+
+      <!-- ============ OVERVIEW PAGE ============ -->
+      <div class="page active" id="page-overview">
+
+        <div class="demo-banner">
+          <span>⬤ DEMO MODE — SIMULATED INCIDENT DATA. NO LIVE SATELLITE OR AIS FEED IS CONNECTED.</span>
+          <div class="toggle-wrap">
+            Demo Mode
+            <div class="switch on" id="demo-switch"><div class="knob"></div></div>
+          </div>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi-card">
+            <div class="kpi-top"><span class="kpi-label">ACTIVE INCIDENTS</span></div>
+            <div class="kpi-value">03</div>
+            <div class="kpi-trend trend-up">▲ 1 since 06:00 UTC</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-top"><span class="kpi-label">DETECTED SPILL AREA</span></div>
+            <div class="kpi-value">14.8 <span style="font-size:13px;color:var(--text-faint);">km²</span></div>
+            <div class="kpi-trend trend-up">▲ expanding</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-top"><span class="kpi-label">HIGH-RISK VESSELS</span></div>
+            <div class="kpi-value">03</div>
+            <div class="kpi-trend trend-flat">of 127 analyzed</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-top"><span class="kpi-label">ORIGIN CONFIDENCE</span></div>
+            <div class="kpi-value">91.4<span style="font-size:13px;color:var(--text-faint);">%</span></div>
+            <div class="kpi-trend trend-down">hindcast complete</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-top"><span class="kpi-label">FORECAST HORIZON</span></div>
+            <div class="kpi-value">24<span style="font-size:13px;color:var(--text-faint);">h</span></div>
+            <div class="kpi-trend trend-flat">4 waypoints</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn-primary" id="run-analysis-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            RUN SPILLTRACE ANALYSIS
+          </button>
+        </div>
+
+        <div class="grid-2">
+          <div class="card" id="map-card">
+            <div class="card-head">
+              <div class="card-title">INCIDENT MAP <span class="chip">ST-2026-014</span></div>
+              <div class="card-sub">Coromandel Coast · Bay of Bengal</div>
+            </div>
+            <div style="position:relative;">
+              <div id="map"></div>
+              <div class="map-scenario-tag">SIMULATED SCENARIO — NOT AN ACTUAL EVENT</div>
+              <div class="map-overlay-top">
+                <div class="layer-panel">
+                  <div class="lp-title">MAP LAYERS</div>
+                  <label class="layer-row"><span>Spill Extent</span><input type="checkbox" checked data-layer="spill"></label>
+                  <label class="layer-row"><span>Probable Origin</span><input type="checkbox" checked data-layer="origin"></label>
+                  <label class="layer-row"><span>Hindcast Path</span><input type="checkbox" checked data-layer="hindcast"></label>
+                  <label class="layer-row"><span>Forecast Path</span><input type="checkbox" checked data-layer="forecast"></label>
+                  <label class="layer-row"><span>AIS Vessels</span><input type="checkbox" checked data-layer="vessels"></label>
+                  <label class="layer-row"><span>Risk Zones</span><input type="checkbox" data-layer="risk"></label>
+                </div>
+                <div class="map-controls">
+                  <div class="map-btn" id="btn-zoom-in" title="Zoom in">+</div>
+                  <div class="map-btn" id="btn-zoom-out" title="Zoom out">−</div>
+                  <div class="map-btn" id="btn-fullscreen" title="Fullscreen">⛶</div>
+                  <div class="map-btn" id="btn-reset" title="Reset view">⟲</div>
+                  <div class="map-btn" id="btn-recenter" title="Recenter on incident">◎</div>
+                  <div class="map-btn active-toggle" id="btn-basemap" title="Toggle basemap">🛰</div>
+                </div>
+              </div>
+              <div class="map-legend">
+                <div class="legend-item"><span class="legend-swatch" style="background:#2a2018;"></span>Oil slick (satellite)</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:transparent;border:1.5px dashed #ff6b57;"></span>AI detection mask</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#e0a83c;opacity:.7;"></span>Risk zone</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#3d7ef0;border-radius:50%;"></span>Vessel track</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#a97af0;border-radius:50%;"></span>Probable origin</div>
+                <div class="legend-item"><span class="legend-line" style="background:repeating-linear-gradient(90deg,#a97af0 0 4px,transparent 4px 7px);"></span>Hindcast</div>
+                <div class="legend-item"><span class="legend-line" style="background:#39c3e6;"></span>Forecast</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#e35555;opacity:.5;"></span>Risk: High</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#e0a83c;opacity:.5;"></span>Risk: Medium</div>
+                <div class="legend-item"><span class="legend-swatch" style="background:#3ecf8e;opacity:.5;"></span>Risk: Low</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title">INCIDENT #ST-2026-014</div>
+                <span class="status-badge badge-active">● ACTIVE INVESTIGATION</span>
+              </div>
+              <div class="card-body">
+                <div class="section-divider">DETECTION</div>
+                <div class="stat-row"><span class="stat-label">Detection confidence</span><span class="stat-value">94.2%</span></div>
+                <div class="stat-row"><span class="stat-label">Estimated area</span><span class="stat-value">14.8 km²</span></div>
+                <div class="stat-row"><span class="stat-label">Detection source</span><span class="stat-value">Sentinel-1 SAR</span></div>
+                <div class="stat-row"><span class="stat-label">Secondary validation</span><span class="stat-value">Sentinel-2</span></div>
+                <div class="stat-row"><span class="stat-label">Detected</span><span class="stat-value">09 Sep, 08:42 UTC</span></div>
+
+                <div class="section-divider">LOCATION</div>
+                <div class="stat-row"><span class="stat-label">Latitude</span><span class="stat-value">13.0827° N</span></div>
+                <div class="stat-row"><span class="stat-label">Longitude</span><span class="stat-value">80.3200° E</span></div>
+                <div class="stat-row"><span class="stat-label">Coastal region</span><span class="stat-value">Coromandel Coast</span></div>
+
+                <div class="section-divider">ENVIRONMENTAL CONDITIONS</div>
+                <div class="env-grid">
+                  <div class="env-cell"><div class="el">Wind speed</div><div class="ev">14 km/h</div></div>
+                  <div class="env-cell"><div class="el">Wind direction</div><div class="ev">NE → SW</div></div>
+                  <div class="env-cell"><div class="el">Ocean current</div><div class="ev">0.6 m/s</div></div>
+                  <div class="env-cell"><div class="el">Wave condition</div><div class="ev">Moderate</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">AI SPILL ANALYSIS</div>
+              <span class="status-badge badge-crit">HIGH-CONFIDENCE OIL SLICK</span>
+            </div>
+            <div class="card-body">
+              <div class="mini-pipeline">
+                <div class="mp-step"><div class="mp-ic">🛰</div><div class="mp-t">SATELLITE IMAGE</div></div>
+                <div class="mp-arrow">→</div>
+                <div class="mp-step"><div class="mp-ic">🧠</div><div class="mp-t">AI SEGMENTATION</div></div>
+                <div class="mp-arrow">→</div>
+                <div class="mp-step"><div class="mp-ic">▦</div><div class="mp-t">SPILL MASK</div></div>
+              </div>
+              <div class="ring-wrap">
+                <div class="ring" style="--pct:94%;"><div class="ring-inner"><b>94%</b><span>CONF.</span></div></div>
+                <div style="flex:1;">
+                  <div class="stat-row"><span class="stat-label">Segmentation confidence</span><span class="stat-value">94.2%</span></div>
+                  <div class="stat-row"><span class="stat-label">Estimated extent</span><span class="stat-value">14.8 km²</span></div>
+                  <div class="stat-row"><span class="stat-label">Slick shape</span><span class="stat-value">Elongated / drifting</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">ORIGIN ANALYSIS</div>
+              <span class="status-badge badge-ok">HINDCAST COMPLETE</span>
+            </div>
+            <div class="card-body">
+              <div class="stat-row"><span class="stat-label">Probable origin</span><span class="stat-value">13.1520° N, 80.2210° E</span></div>
+              <div class="stat-row"><span class="stat-label">Release window</span><span class="stat-value">06:00 – 10:00 UTC</span></div>
+              <div class="stat-row"><span class="stat-label">Origin confidence</span><span class="stat-value">91.4%</span></div>
+              <div class="section-divider">MODEL INPUTS</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                <span class="status-badge badge-ok">Wind</span>
+                <span class="status-badge badge-ok">Ocean current</span>
+                <span class="status-badge badge-ok">Spill location</span>
+                <span class="status-badge badge-ok">Time</span>
+              </div>
+              <div class="release-timeline">
+                <div class="rt-marker" style="left:50%;">08:12</div>
+                <div class="rt-bar"><div class="rt-fill"></div></div>
+                <div class="rt-labels"><span>06:00</span><span>08:00</span><span>10:00</span></div>
+              </div>
+              <button class="btn-ghost" style="margin-top:12px;width:100%;" id="view-hindcast-btn">VIEW HINDCAST ON MAP</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card grid-full">
+          <div class="card-head">
+            <div class="card-title">POTENTIAL VESSEL ANALYSIS</div>
+            <div class="card-sub">ALL VESSELS → SPATIAL FILTER → TIME FILTER → HIGH PRIORITY</div>
+          </div>
+          <div class="card-body">
+            <div class="funnel">
+              <div class="funnel-step f1"><div class="funnel-num">127</div><div class="funnel-lbl">VESSELS ANALYZED</div></div>
+              <div class="funnel-step f2"><div class="funnel-num">18</div><div class="funnel-lbl">SPATIALLY RELEVANT</div></div>
+              <div class="funnel-step f3"><div class="funnel-num">07</div><div class="funnel-lbl">TIME-WINDOW MATCHES</div></div>
+              <div class="funnel-step f4"><div class="funnel-num">03</div><div class="funnel-lbl">HIGH-PRIORITY VESSELS</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card grid-full">
+          <div class="card-head">
+            <div class="card-title">SUSPECT VESSEL RANKING</div>
+            <div class="card-sub">Click a vessel for explainable evidence</div>
+          </div>
+          <div class="card-body" style="padding:0 0 6px;">
+            <table class="rank-table">
+              <thead><tr>
+                <th>Rank</th><th>Vessel</th><th>Distance</th><th>Time Match</th><th>Trajectory</th><th>Behaviour</th><th>Score</th>
+              </tr></thead>
+              <tbody id="rank-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid-split">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">24-HOUR SPILL FORECAST</div>
+              <div class="card-sub">+6h / +12h / +18h / +24h</div>
+            </div>
+            <div class="card-body">
+              <canvas id="forecast-chart" height="140"></canvas>
+              <div class="forecast-stats">
+                <div class="fstat"><div class="fl">PREDICTED AREA (24H)</div><div class="fv">21.4 km²</div></div>
+                <div class="fstat"><div class="fl">EXPANSION</div><div class="fv">+44.5%</div></div>
+                <div class="fstat"><div class="fl">COASTAL RISK</div><div class="fv risk-high">HIGH</div></div>
+                <div class="fstat"><div class="fl">PRIORITY ZONE</div><div class="fv" style="font-size:12px;">Fishing / Coastal</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">RISK ZONE ANALYSIS</div>
+            </div>
+            <div class="card-body">
+              <div class="stat-row"><span class="stat-label"><span class="status-badge badge-crit" style="margin-right:6px;">CRIT</span>Fishing region (Ennore–Kattupalli)</span><span class="stat-value">4.2 km²</span></div>
+              <div class="stat-row"><span class="stat-label"><span class="status-badge badge-active" style="margin-right:6px;">HIGH</span>Shipping route corridor</span><span class="stat-value">6.9 km²</span></div>
+              <div class="stat-row"><span class="stat-label"><span class="status-badge badge-active" style="margin-right:6px;">HIGH</span>Sensitive ecological zone</span><span class="stat-value">3.1 km²</span></div>
+              <div class="stat-row"><span class="stat-label"><span class="status-badge badge-ok" style="margin-right:6px;">MOD</span>Coastal buffer zone</span><span class="stat-value">7.2 km²</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-split">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">ALERT CENTER</div>
+            </div>
+            <div class="card-body">
+              <div class="alert-item"><div class="alert-dot" style="background:var(--red);"></div><div><div class="alert-title">HIGH PRIORITY</div><div class="alert-desc">Potential vessel identified — MV Ocean Star, score 92/100.</div></div><div class="alert-time">2m ago</div></div>
+              <div class="alert-item"><div class="alert-dot" style="background:var(--amber);"></div><div><div class="alert-title">WARNING</div><div class="alert-desc">Spill forecast intersects coastal fishing zone within 18h.</div></div><div class="alert-time">14m ago</div></div>
+              <div class="alert-item"><div class="alert-dot" style="background:var(--cyan);"></div><div><div class="alert-title">SYSTEM</div><div class="alert-desc">New Sentinel-2 optical observation available for validation.</div></div><div class="alert-time">31m ago</div></div>
+              <div class="alert-item"><div class="alert-dot" style="background:var(--text-faint);"></div><div><div class="alert-title">DATA QUALITY</div><div class="alert-desc">AIS gap detected in MV Eastern Wave trajectory (07:10–07:40).</div></div><div class="alert-time">52m ago</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">EVIDENCE PANEL</div>
+            </div>
+            <div class="card-body">
+              <div class="evidence-grid">
+                <div class="ev-card"><div class="evt">Satellite Evidence</div><div class="evs">Sentinel-1 SAR</div><span class="status-badge badge-ok">Available</span><button class="ev-btn">VIEW</button></div>
+                <div class="ev-card"><div class="evt">Optical Evidence</div><div class="evs">Sentinel-2</div><span class="status-badge badge-ok">Available</span><button class="ev-btn">VIEW</button></div>
+                <div class="ev-card"><div class="evt">Vessel Evidence</div><div class="evs">AIS trajectory</div><span class="status-badge badge-ok">Matched</span><button class="ev-btn">VIEW</button></div>
+                <div class="ev-card"><div class="evt">Environmental</div><div class="evs">Wind + currents</div><span class="status-badge badge-ok">Integrated</span><button class="ev-btn">VIEW</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ ARCHITECTURE PAGE ============ -->
+      <div class="page" id="page-architecture">
+        <div class="card">
+          <div class="card-head"><div class="card-title">SYSTEM ARCHITECTURE</div><div class="card-sub">End-to-end investigation pipeline</div></div>
+          <div class="card-body">
+            <div class="pipeline-flow" id="pipeline-flow"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ DATA SOURCES PAGE ============ -->
+      <div class="page" id="page-datasources">
+        <div class="card">
+          <div class="card-head"><div class="card-title">DATA SOURCES</div><div class="card-sub">Simulated in this prototype — live connections not active</div></div>
+          <div class="card-body">
+            <div class="ds-grid" id="ds-grid"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="timeline-bar">
+    <div class="tl-play" id="tl-play">▶</div>
+    <div class="tl-track-wrap">
+      <div class="tl-labels"><span>Release · 06:00</span><span>Detection · 09:00</span><span>Now · 11:12</span><span>Forecast · 18:00</span></div>
+      <div class="tl-track" id="tl-track"><div class="tl-fill" id="tl-fill"></div><div class="tl-handle" id="tl-handle"></div></div>
+    </div>
+    <div class="tl-current" id="tl-current">11:12 UTC</div>
+  </div>
+</div>
+
+<div id="drawer-backdrop"></div>
+<div id="drawer">
+  <div class="drawer-head">
+    <div>
+      <h3 id="drawer-vessel-name">MV OCEAN STAR</h3>
+      <p>WHY THIS VESSEL IS HIGH PRIORITY</p>
+    </div>
+    <div class="drawer-close" id="drawer-close">✕</div>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<div id="progress-modal">
+  <div class="progress-card">
+    <h4>RUNNING SPILLTRACE ANALYSIS</h4>
+    <div class="pc-sub">Executing detection → origin → correlation → forecast pipeline</div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="stage-list" id="stage-list"></div>
+    <div class="complete-banner" id="complete-banner">✓ ANALYSIS COMPLETE — GIS LAYERS UPDATED</div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script>
+/* =================== DEMO DATA MODEL =================== */
+const incident = {
+  id:"ST-2026-014", status:"ACTIVE INVESTIGATION",
+  latitude:13.0827, longitude:80.3200, area:14.8, confidence:94.2,
+  detectedAt:"09 Sep 2026, 08:42 UTC",
+  probableOrigin:{lat:13.1520, lng:80.2210}, releaseWindow:"06:00–10:00 UTC",
+  wind:"14 km/h NE→SW", current:"0.6 m/s",
+  forecast:[{t:"+6h",area:15.2},{t:"+12h",area:17.8},{t:"+18h",area:19.6},{t:"+24h",area:21.4}]
+};
+
+const vessels = [
+  {rank:1,name:"MV OCEAN STAR",mmsi:"419008532",distance:"1.8 km",time:98,traj:95,behaviour:"High",score:92,
+   evidence:{spatial:92,spatialTxt:"Vessel passed within 1.8 km of the probable origin.",
+             temporal:98,temporalTxt:"Vessel was present during the estimated release window.",
+             trajectory:95,trajectoryTxt:"Historical trajectory intersects the probable origin region.",
+             behavioural:81,behaviouralTxt:"Observed deviation from expected shipping route."},
+   pos:[13.20,80.05], color:"var(--red)"},
+  {rank:2,name:"MV BLUE HORIZON",mmsi:"419551207",distance:"4.2 km",time:91,traj:88,behaviour:"Medium",score:84,
+   evidence:{spatial:80,spatialTxt:"Vessel passed within 4.2 km of the probable origin.",
+             temporal:91,temporalTxt:"Vessel transited the area near the end of the release window.",
+             trajectory:88,trajectoryTxt:"Trajectory passes close to the probable origin region.",
+             behavioural:58,behaviouralTxt:"Minor speed reduction observed near the origin area."},
+   pos:[13.02,80.42], color:"var(--amber)"},
+  {rank:3,name:"MV EASTERN WAVE",mmsi:"419772341",distance:"7.1 km",time:82,traj:79,behaviour:"Low",score:76,
+   evidence:{spatial:65,spatialTxt:"Vessel passed within 7.1 km of the probable origin.",
+             temporal:82,temporalTxt:"Vessel was in the general area during part of the release window.",
+             trajectory:79,trajectoryTxt:"Trajectory passes near, but not through, the origin region.",
+             behavioural:34,behaviouralTxt:"No significant deviation from expected route."},
+   pos:[12.95,80.55], color:"var(--green)"}
+];
+
+const otherVessels = [
+  {pos:[13.25,80.55],mmsi:"419002211"},{pos:[12.85,80.18],mmsi:"419993312"},
+  {pos:[13.35,80.40],mmsi:"419445521"},{pos:[12.70,80.60],mmsi:"419667788"},
+  {pos:[13.10,80.65],mmsi:"419128843"}
+];
+
+const architectureSteps = [
+  {t:"SATELLITE",s:"Sentinel-1 / Sentinel-2"},
+  {t:"AI SEGMENTATION",s:"Deep-learning spill mask extraction"},
+  {t:"SPILL EXTENT",s:"Polygon + area + confidence"},
+  {t:"DRIFT HINDCAST",s:"Backward trajectory modelling"},
+  {t:"PROBABLE ORIGIN",s:"Origin coordinates + release window"},
+  {t:"AIS CORRELATION",s:"Vessel trajectory matching"},
+  {t:"VESSEL FILTERING",s:"Spatial + temporal narrowing"},
+  {t:"EXPLAINABLE RANKING",s:"Evidence-based suspect scoring"},
+  {t:"DRIFT FORECAST",s:"Forward trajectory projection"},
+  {t:"GIS RESPONSE DASHBOARD",s:"Unified operational picture"}
+];
+
+const dataSources = [
+  {t:"Sentinel-1 SAR",d:"Marine oil-spill detection via synthetic aperture radar.",status:"Simulated",icon:"🛰"},
+  {t:"Sentinel-2",d:"Optical Earth observation for secondary validation.",status:"Simulated",icon:"🌐"},
+  {t:"AIS",d:"Historical vessel trajectories and identification.",status:"Simulated",icon:"🚢"},
+  {t:"Weather",d:"Wind and meteorological conditions.",status:"Simulated",icon:"🌬"},
+  {t:"Ocean Currents",d:"Surface current fields used in drift modelling.",status:"Simulated",icon:"🌊"},
+  {t:"OpenDrift",d:"Ocean trajectory / drift modelling framework.",status:"Simulated",icon:"🧭"}
+];
+
+const stages = [
+  "Acquiring satellite observation...",
+  "Running AI spill segmentation...",
+  "Estimating spill extent...",
+  "Running drift hindcast...",
+  "Estimating probable origin...",
+  "Correlating AIS trajectories...",
+  "Ranking potential vessels...",
+  "Generating forward forecast...",
+  "Updating GIS response layer..."
+];
+
+/* =================== HEADER CLOCK =================== */
+function updateClock(){
+  const d = new Date();
+  document.getElementById('hdr-time').textContent = d.toUTCString().split(' ')[4] + ' UTC';
+}
+updateClock(); setInterval(updateClock, 1000);
+document.getElementById('hdr-sync').textContent = 'Last sync: ' + new Date().toLocaleTimeString('en-GB',{hour12:false});
+
+/* =================== SIDEBAR NAV =================== */
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    const target = item.dataset.page;
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+target).classList.add('active');
+    if(target==='overview'){ setTimeout(()=>map.invalidateSize(),80); }
+  });
+});
+document.getElementById('sidebar-toggle-btn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  setTimeout(()=>map.invalidateSize(),200);
+});
+
+/* =================== DEMO SWITCH =================== */
+document.getElementById('demo-switch').addEventListener('click', function(){
+  this.classList.toggle('on');
+});
+
+/* =================== MAP =================== */
+const map = L.map('map', {zoomControl:false, attributionControl:true, minZoom:3, worldCopyJump:true}).setView([13.05, 80.32], 10);
+
+// PRIMARY basemap: real Earth-observation-style satellite imagery (Esri World Imagery —
+// free, no API key). This gives an actual satellite look at the Chennai / Coromandel
+// coastline and Bay of Bengal, rather than a street map or a black canvas.
+const satelliteTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics', maxZoom:19
+});
+// Labels overlay for the satellite basemap (place names, coastline labels) — kept subtle
+const satelliteLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd', maxZoom:19, pane:'shadowPane', opacity:0.85
+});
+// Alternate basemap 1: dark maritime command-center style (CARTO Dark Matter)
+const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd', maxZoom:19
+});
+// Alternate basemap 2: light/voyager
+const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap contributors &copy; CARTO', subdomains:'abcd', maxZoom:19
+});
+// Fallback: standard OpenStreetMap tiles, used automatically if the primary source fails to load
+const fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'&copy; OpenStreetMap contributors', subdomains:'abc', maxZoom:19
+});
+
+const basemaps = [
+  {name:'SATELLITE', layers:[satelliteTiles, satelliteLabels], icon:'🛰'},
+  {name:'COMMAND DARK', layers:[darkTiles], icon:'◈'},
+  {name:'CHART LIGHT', layers:[lightTiles], icon:'☀'}
+];
+let basemapIdx = 0;
+let fellBack = false;
+basemaps[0].layers.forEach(l=>l.addTo(map));
+
+// If the primary (satellite) tile source can't be reached, swap to the OSM fallback so the
+// map never renders as an empty/black canvas.
+satelliteTiles.on('tileerror', ()=>{
+  if(fellBack || basemapIdx !== 0) return;
+  fellBack = true;
+  basemaps[0].layers.forEach(l=>map.removeLayer(l));
+  fallbackTiles.addTo(map);
+  showToast('Basemap fallback active','Satellite imagery unreachable — switched to OpenStreetMap tiles.');
+});
+
+document.getElementById('btn-basemap').addEventListener('click', ()=>{
+  if(fellBack){ showToast('Basemap','Running on OpenStreetMap fallback tiles.'); return; }
+  basemaps[basemapIdx].layers.forEach(l=>map.removeLayer(l));
+  basemapIdx = (basemapIdx+1) % basemaps.length;
+  basemaps[basemapIdx].layers.forEach(l=>l.addTo(map));
+  showToast('Basemap: '+basemaps[basemapIdx].name, 'GIS base layer switched.');
+});
+
+// ===== OIL SLICK — organic, irregular satellite-style patch (not a clean geometric polygon) =====
+// Built from several overlapping lobes + thin tendrils so it reads as a real slick rather
+// than a red marker shape, with the underlying satellite ocean visible through it.
+const slickLobeMain = [
+  [13.098,80.314],[13.093,80.324],[13.083,80.333],[13.070,80.339],[13.058,80.336],
+  [13.049,80.327],[13.045,80.314],[13.050,80.301],[13.061,80.293],[13.075,80.290],
+  [13.088,80.294],[13.096,80.303]
+];
+const slickLobeSecondary = [
+  [13.052,80.318],[13.044,80.322],[13.038,80.317],[13.036,80.308],[13.041,80.300],
+  [13.049,80.299],[13.054,80.307]
+];
+const slickTendril1 = [[13.096,80.303],[13.104,80.296],[13.111,80.291],[13.116,80.286]];
+const slickTendril2 = [[13.049,80.299],[13.041,80.291],[13.033,80.286]];
+
+const spillGroup = L.layerGroup().addTo(map);
+// Outer soft dark halo (diffuse sheen) — largest, faintest
+L.polygon(slickLobeMain, {stroke:false, fillColor:'#0e0e0e', fillOpacity:0.18, className:'slick-sheen', interactive:false}).addTo(spillGroup);
+// Mid layer — brownish oily body
+const spillLayer = L.polygon(slickLobeMain, {stroke:false, fillColor:'#2a2018', fillOpacity:0.55, className:'slick-body'}).addTo(spillGroup)
+  .bindPopup('<b>INCIDENT #'+incident.id+'</b><br>Spill Area: 14.8 km²<br>Detection Confidence: 94.2%<br>Source: Sentinel-1 SAR<br>Status: Active Investigation<br><i style="color:#7690a8;">Simulated / demo data</i>');
+// Dark core — densest part of the slick
+L.polygon(slickLobeMain.filter((_,i)=>i%2===0).concat([[13.070,80.318]]), {stroke:false, fillColor:'#0a0806', fillOpacity:0.5, interactive:false}).addTo(spillGroup);
+// Secondary lobe, slightly separated pool
+L.polygon(slickLobeSecondary, {stroke:false, fillColor:'#231b14', fillOpacity:0.42, interactive:false}).addTo(spillGroup);
+// Thin tendrils trailing off the main body
+L.polyline(slickTendril1, {color:'#241c14', weight:5, opacity:0.35, lineCap:'round', interactive:false}).addTo(spillGroup);
+L.polyline(slickTendril2, {color:'#241c14', weight:4, opacity:0.3, lineCap:'round', interactive:false}).addTo(spillGroup);
+// Subtle metallic/rainbow sheen accent along part of the edge
+L.polyline(slickLobeMain.slice(0,5), {color:'#6a7a6a', weight:2, opacity:0.22, className:'slick-iridescent', interactive:false}).addTo(spillGroup);
+
+// AI DETECTION MASK — a separate, subtle layer on top of the slick: thin outline + very
+// low-opacity red fill, so it reads as "AI has flagged this area" rather than covering the
+// realistic slick texture underneath.
+const spillGlow = L.polygon(slickLobeMain, {color:'#ff6b57', weight:1.5, opacity:0.75, fillColor:'#ff4d3d', fillOpacity:0.07, dashArray:'5,4', className:'spill-glow-ring'}).addTo(spillGroup);
+
+// Floating annotation box for the slick (small, professional, non-intrusive)
+const spillLabel = L.marker([13.101,80.334], {
+  icon: L.divIcon({className:'', iconAnchor:[0,0], iconSize:null, html:
+    '<div style="background:rgba(8,16,26,0.92);border:1px solid #3a1f1f;border-left:3px solid #e35555;border-radius:4px;padding:6px 10px;font-family:IBM Plex Mono,monospace;font-size:9.5px;color:#dbe6f0;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.4);">'+
+    '<div style="color:#e35555;font-weight:600;letter-spacing:.5px;margin-bottom:2px;">DETECTED OIL SLICK</div>'+
+    '<div>Confidence: <b style="color:#f2f7fb;">94.2%</b></div>'+
+    '<div>Est. Area: <b style="color:#f2f7fb;">14.8 km²</b></div>'+
+    '<div>Source: <b style="color:#f2f7fb;">Sentinel-1 SAR</b></div></div>'
+  })
+}).addTo(spillGroup);
+
+// Origin marker (pulsing)
+const originIcon = L.divIcon({className:'', html:'<div class="origin-pulse-icon"><div class="ring"></div><div class="core"></div></div>', iconSize:[20,20]});
+const originMarker = L.marker([incident.probableOrigin.lat, incident.probableOrigin.lng], {icon:originIcon}).addTo(map)
+  .bindPopup('<b>PROBABLE ORIGIN</b><br>Confidence: 91.4%<br>Release: 06:00–10:00 UTC');
+
+// Helper: bearing (deg) from point A to point B, for rotating directional arrow icons
+function bearing(a,b){
+  const toRad = d=>d*Math.PI/180, toDeg = r=>r*180/Math.PI;
+  const y = Math.sin(toRad(b[1]-a[1]))*Math.cos(toRad(b[0]));
+  const x = Math.cos(toRad(a[0]))*Math.sin(toRad(b[0])) - Math.sin(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.cos(toRad(b[1]-a[1]));
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+function arrowIcon(deg,color){
+  return L.divIcon({className:'', iconSize:[14,14], iconAnchor:[7,7],
+    html:`<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid ${color};transform:rotate(${deg}deg);filter:drop-shadow(0 0 3px ${color});"></div>`});
+}
+function addDirectionArrows(pts,color,group){
+  for(let i=0;i<pts.length-1;i++){
+    const mid=[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2];
+    const deg=bearing(pts[i],pts[i+1]);
+    L.marker(mid,{icon:arrowIcon(deg,color), interactive:false}).addTo(group);
+  }
+}
+
+// Hindcast path (origin -> spill), geographic lat/lng, dashed purple, with direction arrows
+const hindcastPts = [[incident.probableOrigin.lat, incident.probableOrigin.lng],[13.13,80.27],[13.11,80.31],[13.08,80.315]];
+const hindcastGroup = L.layerGroup().addTo(map);
+const hindcastLine = L.polyline(hindcastPts, {color:'#a97af0', weight:3, dashArray:'6,6'}).addTo(hindcastGroup)
+  .bindPopup('<b>HINDCAST</b><br>Backward drift: origin → spill');
+addDirectionArrows(hindcastPts,'#a97af0',hindcastGroup);
+
+// Forecast path (spill -> future), geographic lat/lng, solid cyan, with waypoint markers + arrows
+const forecastPts = [[13.078,80.318],[13.06,80.36],[13.03,80.41],[12.99,80.47],[12.94,80.52]];
+const forecastGroup = L.layerGroup().addTo(map);
+const forecastLine = L.polyline(forecastPts, {color:'#39c3e6', weight:3}).addTo(forecastGroup)
+  .bindPopup('<b>FORECAST</b><br>24-hour projected movement');
+addDirectionArrows(forecastPts,'#39c3e6',forecastGroup);
+const forecastLabels = ['+6h','+12h','+18h','+24h'];
+const forecastMarkers = [];
+for(let i=1;i<forecastPts.length;i++){
+  const m = L.circleMarker(forecastPts[i], {radius:4, color:'#39c3e6', fillColor:'#39c3e6', fillOpacity:1}).addTo(forecastGroup)
+    .bindTooltip(forecastLabels[i-1], {permanent:false});
+  forecastMarkers.push(m);
+}
+
+// Vessels
+const vesselLayerGroup = L.layerGroup().addTo(map);
+function vesselIcon(suspect){
+  return L.divIcon({className:'', html:`<div class="vessel-icon${suspect?' suspect':''}"></div>`, iconSize:[14,14]});
+}
+vessels.forEach(v=>{
+  const trackStart = [v.pos[0]-0.15, v.pos[1]-0.2];
+  const marker = L.marker(v.pos, {icon:vesselIcon(true)}).addTo(vesselLayerGroup)
+    .bindPopup(`<b>${v.name}</b><br>MMSI ${v.mmsi}<br>Risk score: ${v.score}/100`);
+  marker.on('click', ()=> openDrawer(v));
+  L.polyline([trackStart, v.pos], {color:v.color.replace('var(--red)','#e35555').replace('var(--amber)','#e0a83c').replace('var(--green)','#3ecf8e'), weight:1.5, opacity:0.6, dashArray:'3,4'}).addTo(vesselLayerGroup);
+  // keep references so the timeline scrubber can interpolate this vessel's position
+  v._marker = marker; v._trackStart = trackStart; v._trackEnd = v.pos;
+});
+otherVessels.forEach(v=>{
+  L.marker(v.pos, {icon:vesselIcon(false)}).addTo(vesselLayerGroup).bindPopup(`Vessel<br>MMSI ${v.mmsi}`);
+});
+
+// Risk zone polygons
+const riskLayerGroup = L.layerGroup();
+L.polygon([[13.10,80.30],[13.11,80.34],[13.06,80.35],[13.05,80.31]], {color:'#e35555', weight:1, fillColor:'#e35555', fillOpacity:0.20}).addTo(riskLayerGroup).bindPopup('<b>RISK: HIGH</b><br>Fishing region — Ennore–Kattupalli');
+L.polygon([[13.05,80.35],[13.02,80.42],[12.98,80.40],[13.00,80.34]], {color:'#e0a83c', weight:1, fillColor:'#e0a83c', fillOpacity:0.16}).addTo(riskLayerGroup).bindPopup('<b>RISK: MEDIUM</b><br>Shipping route corridor');
+L.polygon([[12.95,80.45],[12.92,80.53],[12.88,80.50],[12.90,80.44]], {color:'#e0a83c', weight:1, fillColor:'#e0a83c', fillOpacity:0.13}).addTo(riskLayerGroup).bindPopup('<b>RISK: MEDIUM</b><br>Sensitive ecological zone');
+L.polygon([[13.14,80.20],[13.17,80.26],[13.12,80.28],[13.10,80.22]], {color:'#3ecf8e', weight:1, fillColor:'#3ecf8e', fillOpacity:0.12}).addTo(riskLayerGroup).bindPopup('<b>RISK: LOW</b><br>Coastal buffer zone');
+
+// Layer toggles
+const layerMap = {spill:[spillGroup], origin:[originMarker], hindcast:[hindcastGroup], forecast:[forecastGroup], vessels:[vesselLayerGroup], risk:[riskLayerGroup]};
+document.querySelectorAll('[data-layer]').forEach(cb=>{
+  cb.addEventListener('change', ()=>{
+    const layers = layerMap[cb.dataset.layer];
+    layers.forEach(l=>{ if(cb.checked) map.addLayer(l); else map.removeLayer(l); });
+  });
+});
+
+document.getElementById('btn-zoom-in').addEventListener('click', ()=>map.zoomIn());
+document.getElementById('btn-zoom-out').addEventListener('click', ()=>map.zoomOut());
+document.getElementById('btn-reset').addEventListener('click', ()=>map.setView([13.05,80.32],9));
+document.getElementById('btn-recenter').addEventListener('click', ()=>{
+  map.setView([incident.latitude, incident.longitude], 11);
+  spillLayer.openPopup();
+  showToast('Recentred on incident','Map focused on INCIDENT #'+incident.id+'.');
+});
+document.getElementById('btn-fullscreen').addEventListener('click', ()=>{
+  const el = document.getElementById('map-card');
+  if(!document.fullscreenElement){ el.requestFullscreen?.(); } else { document.exitFullscreen?.(); }
+  setTimeout(()=>map.invalidateSize(),150);
+});
+document.getElementById('view-hindcast-btn').addEventListener('click', ()=>{
+  map.fitBounds(hindcastLine.getBounds(), {padding:[60,60]});
+  hindcastLine.openPopup();
+  showToast('Hindcast highlighted','Backward drift trajectory focused on map.');
+});
+
+/* =================== RANKING TABLE =================== */
+const tbody = document.getElementById('rank-table-body');
+vessels.forEach(v=>{
+  const scoreColor = v.score>=90?'#e35555':v.score>=80?'#e0a83c':'#3ecf8e';
+  const behaviourClass = v.behaviour==='High'?'b-high':v.behaviour==='Medium'?'b-medium':'b-low';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="rank-num">0${v.rank}</td>
+    <td><span class="vessel-name">${v.name}</span><span class="vessel-mmsi">MMSI ${v.mmsi}</span></td>
+    <td>${v.distance}</td>
+    <td>${v.time}%</td>
+    <td>${v.traj}%</td>
+    <td><span class="behaviour-tag ${behaviourClass}">${v.behaviour}</span></td>
+    <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:${v.score}%;background:${scoreColor};"></div></div><span class="score-num" style="color:${scoreColor};">${v.score}</span></div></td>
+  `;
+  tr.addEventListener('click', ()=>{
+    openDrawer(v);
+    const pos = vessels.find(x=>x.name===v.name).pos;
+    map.setView(pos, 11);
+  });
+  tbody.appendChild(tr);
+});
+
+/* =================== EXPLAINABLE AI DRAWER =================== */
+function openDrawer(v){
+  document.getElementById('drawer-vessel-name').textContent = v.name;
+  const e = v.evidence;
+  const rows = [
+    {label:'Spatial proximity', score:e.spatial, desc:e.spatialTxt},
+    {label:'Temporal alignment', score:e.temporal, desc:e.temporalTxt},
+    {label:'Trajectory consistency', score:e.trajectory, desc:e.trajectoryTxt},
+    {label:'Behavioural anomaly', score:e.behavioural, desc:e.behaviouralTxt},
+  ];
+  let html = '';
+  rows.forEach(r=>{
+    const color = r.score>=85?'#e35555':r.score>=60?'#e0a83c':'#3ecf8e';
+    html += `<div class="evidence-row">
+      <div class="eh"><span class="en">${r.label}</span><span class="es" style="color:${color};">${r.score}/100</span></div>
+      <div class="ebar-bg"><div class="ebar-fill" style="width:${r.score}%;background:${color};"></div></div>
+      <div class="ed">${r.desc}</div>
+    </div>`;
+  });
+  html += `<div class="overall-box"><div class="os">${v.score}/100</div><div class="ol">${v.score>=90?'HIGH PRIORITY':v.score>=75?'PRIORITY':'MONITOR'}</div></div>`;
+  html += `<div class="disclaimer">This ranking represents investigative priority based on spatial, temporal, trajectory, and behavioural correlation. It does not establish legal responsibility.</div>`;
+  document.getElementById('drawer-body').innerHTML = html;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-backdrop').classList.add('show');
+}
+document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('show');
+}
+
+/* =================== FORECAST CHART =================== */
+const fCtx = document.getElementById('forecast-chart').getContext('2d');
+new Chart(fCtx, {
+  type:'line',
+  data:{
+    labels:['Detection','+6h','+12h','+18h','+24h'],
+    datasets:[{
+      label:'Spill area (km²)',
+      data:[14.8, 15.2, 17.8, 19.6, 21.4],
+      borderColor:'#39c3e6', backgroundColor:'rgba(57,195,230,0.12)',
+      pointBackgroundColor:'#39c3e6', pointRadius:3, tension:0.35, fill:true, borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#7690a8', font:{family:'IBM Plex Mono', size:9.5}}, grid:{color:'#122031'}},
+      y:{ticks:{color:'#7690a8', font:{family:'IBM Plex Mono', size:9.5}}, grid:{color:'#122031'}}
+    }
+  }
+});
+
+/* =================== ARCHITECTURE PAGE BUILD =================== */
+const pf = document.getElementById('pipeline-flow');
+architectureSteps.forEach((s,i)=>{
+  const node = document.createElement('div');
+  node.className='pf-node';
+  node.innerHTML = `<div class="pfn-t">${s.t}</div><div class="pfn-s">${s.s}</div>`;
+  pf.appendChild(node);
+  if(i < architectureSteps.length-1){
+    const conn = document.createElement('div');
+    conn.className='pf-connector';
+    pf.appendChild(conn);
+  }
+});
+
+/* =================== DATA SOURCES PAGE BUILD =================== */
+const dsGrid = document.getElementById('ds-grid');
+dataSources.forEach(d=>{
+  const card = document.createElement('div');
+  card.className='ds-card';
+  card.innerHTML = `<div class="dsi" style="font-size:16px;">${d.icon}</div>
+    <div class="dst">${d.t}</div><div class="dsd">${d.d}</div>
+    <span class="ds-status badge-active" style="background:#241305;color:#e0a83c;border:1px solid #3a2a0c;">${d.status}</span>`;
+  dsGrid.appendChild(card);
+});
+
+/* =================== RUN ANALYSIS SEQUENCE =================== */
+const stageListEl = document.getElementById('stage-list');
+stages.forEach((s,i)=>{
+  const row = document.createElement('div');
+  row.className='stage-row';
+  row.id = 'stage-'+i;
+  row.innerHTML = `<span class="stage-dot"></span><span>${s}</span>`;
+  stageListEl.appendChild(row);
+});
+
+document.getElementById('run-analysis-btn').addEventListener('click', runAnalysis);
+
+function runAnalysis(){
+  document.getElementById('progress-modal').classList.add('show');
+  document.getElementById('complete-banner').classList.remove('show');
+  document.getElementById('progress-fill').style.width='0%';
+  stages.forEach((_,i)=>{
+    const row = document.getElementById('stage-'+i);
+    row.classList.remove('done','current');
+  });
+  let i = 0;
+  function step(){
+    if(i>0) document.getElementById('stage-'+(i-1)).classList.replace('current','done');
+    if(i < stages.length){
+      const row = document.getElementById('stage-'+i);
+      row.classList.add('current');
+      document.getElementById('progress-fill').style.width = Math.round(((i+1)/stages.length)*100)+'%';
+      i++;
+      setTimeout(step, 480);
+    } else {
+      document.getElementById('complete-banner').classList.add('show');
+      showToast('Analysis complete', 'GIS layers updated with latest hindcast and forecast.');
+      setTimeout(()=>{
+        document.getElementById('progress-modal').classList.remove('show');
+        map.setView([13.05,80.32],9.3);
+      }, 1100);
+    }
+  }
+  step();
+}
+
+/* =================== TOASTS =================== */
+function showToast(title, desc){
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className='toast';
+  t.innerHTML = `<b>${title}</b>${desc}`;
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 4200);
+}
+
+/* =================== TIMELINE (visual drag) =================== */
+const tlTrack = document.getElementById('tl-track');
+const tlHandle = document.getElementById('tl-handle');
+const tlFill = document.getElementById('tl-fill');
+const tlCurrent = document.getElementById('tl-current');
+let dragging = false;
+function setTimelinePct(pct){
+  pct = Math.max(0, Math.min(100, pct));
+  tlHandle.style.left = pct+'%';
+  tlFill.style.width = pct+'%';
+  const hours = Math.round((pct/100)*24);
+  const hh = String(6 + hours >= 24 ? (6+hours-24) : 6+hours).padStart(2,'0');
+  tlCurrent.textContent = hh+':00 UTC';
+
+  // Drive vessels along their AIS track in step with the scrubber
+  const f = pct/100;
+  vessels.forEach(v=>{
+    if(!v._marker) return;
+    const lat = v._trackStart[0] + (v._trackEnd[0]-v._trackStart[0])*f;
+    const lng = v._trackStart[1] + (v._trackEnd[1]-v._trackStart[1])*f;
+    v._marker.setLatLng([lat,lng]);
+  });
+
+  // Phase-driven layer emphasis: release -> detection -> now -> forecast
+  const spillChecked = document.querySelector('[data-layer="spill"]').checked;
+  if(f < 0.22){
+    // Release window: origin highlighted, spill not yet visible
+    if(map.hasLayer(spillGroup)) map.removeLayer(spillGroup);
+  } else {
+    if(!map.hasLayer(spillGroup) && spillChecked) spillGroup.addTo(map);
+  }
+  forecastLine.setStyle({opacity: f > 0.6 ? 1 : 0.35});
+  hindcastLine.setStyle({opacity: f < 0.6 ? 1 : 0.35});
+}
+tlHandle.addEventListener('mousedown', ()=>dragging=true);
+document.addEventListener('mouseup', ()=>dragging=false);
+document.addEventListener('mousemove', (e)=>{
+  if(!dragging) return;
+  const rect = tlTrack.getBoundingClientRect();
+  const pct = ((e.clientX-rect.left)/rect.width)*100;
+  setTimelinePct(pct);
+});
+tlTrack.addEventListener('click', (e)=>{
+  const rect = tlTrack.getBoundingClientRect();
+  const pct = ((e.clientX-rect.left)/rect.width)*100;
+  setTimelinePct(pct);
+});
+let playing = false, playInterval;
+document.getElementById('tl-play').addEventListener('click', function(){
+  playing = !playing;
+  this.textContent = playing ? '❚❚' : '▶';
+  if(playing){
+    let pct = parseFloat(tlHandle.style.left)||38;
+    playInterval = setInterval(()=>{
+      pct += 1.2;
+      if(pct>=100){ pct=0; }
+      setTimelinePct(pct);
+    }, 140);
+  } else {
+    clearInterval(playInterval);
+  }
+});
+
+/* Init toast on load */
+setTimeout(()=>showToast('System ready','SPILLTRACE AI command center initialized in demo mode.'), 600);
+</script>
+</body>
+</html>
